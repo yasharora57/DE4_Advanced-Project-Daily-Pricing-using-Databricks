@@ -97,7 +97,7 @@ Centralized Log Table: `processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS`
 
 ### 🌐 Geo Location API (External REST API Integration - For ML implementation)
 
-- API Source: [`https://geocoding-api.open-meteo.com`]([https://geocoding-api.open-meteo.com](https://geocoding-api.open-meteo.com/v1/search?name=kovilpatti&count=10&language=en&format=json]))
+- API Source: [`https://geocoding-api.open-meteo.com`](https://geocoding-api.open-meteo.com/v1/search?name=kovilpatti&count=10&language=en&format=json)
 - Purpose: To enrich **market** data with **geographical attributes**
 - Key Fields Extracted:
   - `latitude`, `longitude`, `population`
@@ -111,7 +111,7 @@ Centralized Log Table: `processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS`
 
 ### 🌦️ Weather Data API (External REST API Integration - For ML implementation)
 
-- API Source: [`https://archive-api.open-meteo.com`]([https://archive-api.open-meteo.com](https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=2023-01-01&end_date=2024-01-01&daily=temperature_2m_max,temperature_2m_min,rain_sum))
+- API Source: [`https://archive-api.open-meteo.com`](https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=2023-01-01&end_date=2024-01-01&daily=temperature_2m_max,temperature_2m_min,rain_sum)
 - Purpose: To augment pricing data with **daily weather metrics**
 - Key Fields Extracted:
   - `temperature_2m_max`, `temperature_2m_min`, `rain_sum`
