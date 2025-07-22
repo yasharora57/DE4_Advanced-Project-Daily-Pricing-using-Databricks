@@ -46,7 +46,7 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 
 ---
 
-### 🔄 Data Ingestion Workflow (HTTPS Source)
+### 🔄 Data Ingestion Workflow (HTTPS Source - Denormalized Fact Table)
 
 1. **Ingestion Metadata Management**
    - Created a **log table** to track latest ingested date
@@ -54,12 +54,22 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 
 2. **Ingestion Logic**
    - Read JSON data using `pandas`, convert to Spark DataFrame
-   - Append ingested records to **Bronze Layer**
-   - Update log table with latest processed date
+   - Append ingested records to **bronze** container in ADLS Gen-2
+   - Create an external table in the bronze schema `bronze.daily_pricing`
 
 3. **Data Characteristics**
    - One JSON file per day ingested from the web API
    - Year-long (2023) data retrieved incrementally using the log
+
+---
+
+### 🗃️ Reference Data (SQL Server via JDBC - Lookup/Reference Tables)
+
+- 5 lookup/reference tables ingested:
+  - One-time full load stored under `bronze/reference-data` in ADLS Gen-2
+  - Connected using **JDBC Connector**
+  - Triggered manually only once via **parameterized workflow job**
+  - Designed for yearly refresh
 
 ---
 
@@ -80,16 +90,6 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 - Implements **SCD Type-2** for all dimensions using staging logic
 - Fact Table: `reporting_fact_daily_pricing_gold`
 - Enriched Table: `price_prediction_gold` (for ML)
-
----
-
-### 🗃️ Reference Data (SQL Server via JDBC)
-
-- Five lookup/reference tables ingested:
-  - One-time full load stored under `bronze/reference-data`
-  - Connected using **JDBC Connector**
-  - Loaded manually or triggered via **parameterized notebooks**
-  - Designed for yearly refresh
 
 ---
 
