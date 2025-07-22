@@ -15,10 +15,11 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 
 - ✅ **End-to-End Lakehouse Project** for both **BI** and **ML**
 - ✅ **Medallion Architecture**: Bronze → Silver → Gold
+- ✅ **Data Sources**: Web APIs, SQL Server (JDBC)
 - ✅ **Incremental Loads** with log-based filtering
 - ✅ **SCD Type-2 Implementation** using staging + merge
-- ✅ **Star Schema Modeling** for analytics
-- ✅ **Enriched ML Table** combining pricing, weather, geo data
+- ✅ **Star Schema Modeling** for analytics using denormalized fact tables
+- ✅ **Enriched ML Table** combining pricing, weather, geo data from REST APIs
 
 ---
 
@@ -64,14 +65,6 @@ Centralized Log Table: `processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS`
 - Tracks process status per table
 - Records latest processed date per run
 - Used for filtering new data in all layers:
-  ```sql
-  CREATE TABLE IF NOT EXISTS processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS(
-  PROCESS_NAME STRING,
-  PROCESSED_FILE_TABLE_DATE DATE,
-  PROCESS_STATUS STRING,
-  PROCESSED_TABLE_DATETIME TIMESTAMP
-  )
-  ```
 
 ---
 
@@ -131,63 +124,42 @@ Centralized Log Table: `processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS`
 
 ---
 
+### ⚙️ SCD Type-2 Implementation & Star Schema Data Modeling
 
-### 🧾 Fact & Dim Table Structures (Gold Layer)
+This architecture uses a **Star Schema** for the **Gold Layer**, transforming a **denormalized fact table** (from the HTTPS daily pricing API) into normalized **dimension and fact tables**.
 
-#### 📌 Dimensions:
+#### ⭐ Star Schema Design:
+- **Fact Table:**
+  - `REPORTING_FACT_DAILY_PRICING_GOLD`: Captures daily transactional data with foreign keys referencing dimension tables
+  - Includes: DATE_ID, STATE_ID, MARKET_ID, PRODUCT_ID, VARIETY_ID, ARRIVAL_IN_TONNES, MINIMUM_PRICE, MAXIMUM_PRICE, MODAL_PRICE
+- **Dimension Tables:**
+  - `REPORTING_DIM_DATE_GOLD`
+  - `REPORTING_DIM_STATE_GOLD`
+  - `REPORTING_DIM_MARKET_GOLD`
+  - `REPORTING_DIM_PRODUCT_GOLD_SCDTYPE2`
+  - `REPORTING_DIM_VARIETY_GOLD`
 
-- `REPORTING_DIM_DATE_GOLD`
-- `REPORTING_DIM_STATE_GOLD`
-- `REPORTING_DIM_MARKET_GOLD`
-- `REPORTING_DIM_PRODUCT_GOLD_SCDTYPE2`
-- `REPORTING_DIM_VARIETY_GOLD`
+> All dimension tables are equipped with surrogate keys and SCD Type-2 handling to retain historical context and support time-travel queries.
 
-Each includes:
-- Business attributes
-- Surrogate Keys (e.g. `STATE_ID`, `PRODUCT_ID`)
-- Metadata (`inserted_date`, `updated_date`)
-
-#### 📌 Fact Table:
-
-`REPORTING_FACT_DAILY_PRICING_GOLD`
-
-Includes:
-- `DATE_ID`, `STATE_ID`, `MARKET_ID`, `PRODUCT_ID`, `VARIETY_ID`
-- `ARRIVAL_IN_TONNES`, `MINIMUM_PRICE`, `MAXIMUM_PRICE`, `MODAL_PRICE`
+#### 🧠 Data Modeling Logic:
+- The original **denormalized pricing dataset** had repeating data across columns like product, market, variety, etc.
+- It was split into atomic dimensions for reuse and referential integrity
+- Keys (`*_ID`) were introduced for all dimension tables
+- The fact table references dimension keys along with daily prices
 
 ---
 
-### ⚙️ Data Modelling & SCD Type-2 Implementation for Dimension Tables
+### 🧬 SCD Type-2 Implementation Details
 
-- Implemented using **intermediate staging tables**:
+- Implemented using **intermediate staging tables** stored in the silver schema:
   - `reporting_dim_product_stage_1`, `_stage_2`, `_stage_3`
 - Surrogate keys generated via `ROW_NUMBER()` + max key logic
-- **Merge Operation** used to update `end_date` on change
-- Inserts new records or changed rows with updated start dates
+- Applied **CDC** filtering using `lakehouse_updated_date`
+- Merged into the final dimension table using `MERGE` and set `end_date` when a change is detected
 
 ---
 
-### 🧱 Medallion Architecture
-
-#### **Bronze Layer** (Raw Zone):
-- Stores all API and JDBC source data as-is
-- Tables: `daily_pricing_raw`, `geo_location_raw`, `weather_data_raw`, `reference_data_json`
-
-#### **Silver Layer** (Cleaned Zone):
-- Clean schema with proper data types
-- Adds metadata: `lakehouse_inserted_date`, `lakehouse_updated_date`
-- Implements CDC logic with log-based filters
-- Stores `daily_pricing_silver`, `geo_location_silver`, `weather_data_silver`, and lookup tables
-
-#### **Gold Layer** (Business Zone):
-- Dimension and Fact tables created using **Star Schema**
-- Implements **SCD Type-2** for all dimensions using staging logic
-- Fact Table: `reporting_fact_daily_pricing_gold`
-- Enriched Table: `price_prediction_gold` (for ML)
-
----
-
-## 🔧 How to Use
+## 🔧 How to Use (without using Databricks Workflows)
 
 1. **Create Azure Resources**
    - ADLS Gen2 with containers: `bronze`, `silver`, `gold`, `pricing-analytics`
@@ -195,22 +167,12 @@ Includes:
    - Unity Catalog + Metastore + Access Connector
 
 2. **Configure Unity Catalog**
-   - Assign external locations
+   - Assign external locations for all the 3 medallion containers and managed location of the unity catalog
    - Register credentials and sources
+   - Create the following schemas under the catalog named `pricing-analytics`: bronze, silver, gold, processrunlogs
 
 3. **Run Ingestion Logic**
-   - Read HTTPS APIs via notebooks
-   - Store in Bronze layer
-   - Track dates via log table
-
-4. **Run Transformation Pipelines**
-   - Clean & cast data → Silver layer
-   - Build star schema → Gold layer
-   - Execute SCD logic on dim tables
-
-5. **(Optional)** ML Pipeline
-   - Extract Geo & Weather data
-   - Create `price_prediction_gold` for downstream ML tasks
+   - Run the files listed in the `code` folder sequentially
 
 ---
 
