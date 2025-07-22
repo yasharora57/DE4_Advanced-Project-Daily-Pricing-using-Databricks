@@ -15,7 +15,7 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 
 - ✅ **End-to-End Lakehouse Project** for both **BI** and **ML**
 - ✅ **Medallion Architecture**: Bronze → Silver → Gold
-- ✅ **Data Sources**: Web APIs, SQL Server (JDBC)
+- ✅ **Data Sources**: HTTPS source, REST APIs, SQL Server (JDBC)
 - ✅ **Incremental Loads** with log-based filtering
 - ✅ **SCD Type-2 Implementation** using staging + merge
 - ✅ **Star Schema Modeling** for analytics using denormalized fact tables
@@ -97,7 +97,7 @@ Centralized Log Table: `processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS`
 
 ### 🌐 Geo Location API (External REST API Integration - For ML implementation)
 
-- API Source: [`https://geocoding-api.open-meteo.com`]([https://geocoding-api.open-meteo.com](https://geocoding-api.open-meteo.com/v1/search?name=kovilpatti&count=10&language=en&format=json))
+- API Source: [`https://geocoding-api.open-meteo.com`]([https://geocoding-api.open-meteo.com](https://geocoding-api.open-meteo.com/v1/search?name=kovilpatti&count=10&language=en&format=json]))
 - Purpose: To enrich **market** data with **geographical attributes**
 - Key Fields Extracted:
   - `latitude`, `longitude`, `population`
