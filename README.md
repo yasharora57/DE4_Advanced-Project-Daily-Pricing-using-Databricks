@@ -11,6 +11,17 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 
 ---
 
+## ✅ Highlights
+
+- ✅ **End-to-End Lakehouse Project** for both **BI** and **ML**
+- ✅ **Medallion Architecture**: Bronze → Silver → Gold
+- ✅ **Incremental Loads** with log-based filtering
+- ✅ **SCD Type-2 Implementation** using staging + merge
+- ✅ **Star Schema Modeling** for analytics
+- ✅ **Enriched ML Table** combining pricing, weather, geo data
+
+---
+
 ### 🚀 Key Features:
 
 - **Tech Stack:** Databricks, ADLS Gen-2, Unity Catalog, PySpark, SQL, JDBC, Delta Lake, REST APIs
@@ -27,7 +38,7 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 
 ---
 
-### 🔧 Architecture Setup & Configuration
+### 🔧 Architecture Setup & Configuration for the Unity Catalog
 
 #### 📌 Unity Catalog & External Storage Configuration:
 
@@ -43,6 +54,24 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 3. **Set up Unity Metastore**
    - Optional: Assign a default managed location
    - Assign catalog (`pricing_analytics`) to external managed container path
+
+---
+
+### 📋 Process Logging
+
+Centralized Log Table: `processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS`
+
+- Tracks process status per table
+- Records latest processed date per run
+- Used for filtering new data in all layers:
+  ```sql
+  CREATE TABLE IF NOT EXISTS processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS(
+  PROCESS_NAME STRING,
+  PROCESSED_FILE_TABLE_DATE DATE,
+  PROCESS_STATUS STRING,
+  PROCESSED_TABLE_DATETIME TIMESTAMP
+  )
+  ```
 
 ---
 
@@ -73,49 +102,35 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 
 ---
 
-### 🧱 Medallion Architecture
+### 🌐 Geo Location API (External REST API Integration - For ML implementation)
 
-#### **Bronze Layer** (Raw Zone):
-- Stores all API and JDBC source data as-is
-- Tables: `daily_pricing_raw`, `geo_location_raw`, `weather_data_raw`, `reference_data_json`
-
-#### **Silver Layer** (Cleaned Zone):
-- Clean schema with proper data types
-- Adds metadata: `lakehouse_inserted_date`, `lakehouse_updated_date`
-- Implements CDC logic with log-based filters
-- Stores `daily_pricing_silver`, `geo_location_silver`, `weather_data_silver`, and lookup tables
-
-#### **Gold Layer** (Business Zone):
-- Dimension and Fact tables created using **Star Schema**
-- Implements **SCD Type-2** for all dimensions using staging logic
-- Fact Table: `reporting_fact_daily_pricing_gold`
-- Enriched Table: `price_prediction_gold` (for ML)
+- API Source: [`https://geocoding-api.open-meteo.com`]([https://geocoding-api.open-meteo.com](https://geocoding-api.open-meteo.com/v1/search?name=kovilpatti&count=10&language=en&format=json))
+- Purpose: To enrich **market** data with **geographical attributes**
+- Key Fields Extracted:
+  - `latitude`, `longitude`, `population`
+- Data is stored in: `geo-location` folder under bronze container
+- Processing:
+  - Flattened nested arrays and normalized schema using PySpark
+  - Stored as structured Delta tables in **Silver Layer** for analytical use -`silver.geo_location_silver`
+  - Joined to **market-level** pricing data in **Gold Layer** using state/market name
 
 ---
 
-### ⚙️ SCD Type-2 Implementation for Dimension Tables
+### 🌦️ Weather Data API (External REST API Integration - For ML implementation)
 
-- Implemented using **intermediate staging tables**:
-  - `reporting_dim_product_stage_1`, `_stage_2`, `_stage_3`
-- Surrogate keys generated via `ROW_NUMBER()` + max key logic
-- **Merge Operation** used to update `end_date` on change
-- Inserts new records or changed rows with updated start dates
-
-Example (Product Dimension):
-
-```sql
-MERGE INTO gold.reporting_dim_product_gold_SCDTYPE2 goldDim
-USING silver.reporting_dim_product_stage_3 silverDim
-ON goldDim.PRODUCT_ID = silverDim.GOLD_PRODUCT_ID
-WHEN MATCHED THEN 
-  UPDATE SET goldDim.end_date = current_timestamp(),
-             goldDim.lakehouse_updated_date = current_timestamp()
-WHEN NOT MATCHED THEN 
-  INSERT (PRODUCTGROUP_NAME, PRODUCT_NAME, PRODUCT_ID, start_date, end_date, lakehouse_inserted_date, lakehouse_updated_date)
-  VALUES (PRODUCTGROUP_NAME, PRODUCT_NAME, PRODUCT_ID, current_timestamp(), NULL, current_timestamp(), current_timestamp())
-```
+- API Source: [`https://archive-api.open-meteo.com`]([https://archive-api.open-meteo.com](https://archive-api.open-meteo.com/v1/archive?latitude=52.52&longitude=13.41&start_date=2023-01-01&end_date=2024-01-01&daily=temperature_2m_max,temperature_2m_min,rain_sum))
+- Purpose: To augment pricing data with **daily weather metrics**
+- Key Fields Extracted:
+  - `temperature_2m_max`, `temperature_2m_min`, `rain_sum`
+- Data is stored in: `weather-data` folder under Bronze layer
+- Processing:
+  - Transformed date-indexed array structure to tabular format saved in the silver schema - `silver.weather_data_silver`
+  - Enriched pricing fact table in **Gold Layer** with:
+    - Temperature Unit, Min/Max Temperature, Rainfall Unit, Rainfall Amount
+- Final Enriched Table: `PRICE_PREDICTION_GOLD` (used for ML modeling)
 
 ---
+
 
 ### 🧾 Fact & Dim Table Structures (Gold Layer)
 
@@ -142,59 +157,33 @@ Includes:
 
 ---
 
-### 📦 ML Feature Engineering
+### ⚙️ Data Modelling & SCD Type-2 Implementation for Dimension Tables
 
-1. **Geo Location Enrichment**
-   - API: `https://geocoding-api.open-meteo.com`
-   - Extracts: `latitude`, `longitude`, `population`
-
-2. **Weather Data Integration**
-   - API: `https://archive-api.open-meteo.com`
-   - Extracts: `temperature_2m_max/min`, `rain_sum`
-
-3. **Final ML Table:** `PRICE_PREDICTION_GOLD`
-
-Combines:
-- Pricing Data
-- Weather Info
-- Geo Location Info
-
-```sql
-CREATE TABLE gold.PRICE_PREDICTION_GOLD AS
-SELECT ...
-FROM silver.daily_pricing_silver
-JOIN silver.geo_location_silver
-JOIN silver.weather_data_silver
-...
-```
+- Implemented using **intermediate staging tables**:
+  - `reporting_dim_product_stage_1`, `_stage_2`, `_stage_3`
+- Surrogate keys generated via `ROW_NUMBER()` + max key logic
+- **Merge Operation** used to update `end_date` on change
+- Inserts new records or changed rows with updated start dates
 
 ---
 
-### 📋 Process Logging
+### 🧱 Medallion Architecture
 
-Centralized Log Table: `processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS`
+#### **Bronze Layer** (Raw Zone):
+- Stores all API and JDBC source data as-is
+- Tables: `daily_pricing_raw`, `geo_location_raw`, `weather_data_raw`, `reference_data_json`
 
-- Tracks process status per table
-- Records latest processed date per run
-- Used for filtering new data in all layers:
-  ```sql
-  WHERE lakehouse_updated_date > (
-    SELECT NVL(MAX(PROCESSED_TABLE_DATETIME), '1900-01-01') 
-    FROM processrunlogs.DELTALAKEHOUSE_PROCESS_RUNS 
-    WHERE process_name = '...' AND process_status = 'Completed'
-  )
-  ```
+#### **Silver Layer** (Cleaned Zone):
+- Clean schema with proper data types
+- Adds metadata: `lakehouse_inserted_date`, `lakehouse_updated_date`
+- Implements CDC logic with log-based filters
+- Stores `daily_pricing_silver`, `geo_location_silver`, `weather_data_silver`, and lookup tables
 
----
-
-## ✅ Highlights
-
-- ✅ **End-to-End Lakehouse Project** for both **BI** and **ML**
-- ✅ **Medallion Architecture**: Bronze → Silver → Gold
-- ✅ **Incremental Loads** with log-based filtering
-- ✅ **SCD Type-2 Implementation** using staging + merge
-- ✅ **Star Schema Modeling** for analytics
-- ✅ **Enriched ML Table** combining pricing, weather, geo data
+#### **Gold Layer** (Business Zone):
+- Dimension and Fact tables created using **Star Schema**
+- Implements **SCD Type-2** for all dimensions using staging logic
+- Fact Table: `reporting_fact_daily_pricing_gold`
+- Enriched Table: `price_prediction_gold` (for ML)
 
 ---
 
