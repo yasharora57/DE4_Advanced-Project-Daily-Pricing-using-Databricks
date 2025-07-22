@@ -14,6 +14,7 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 ## ✅ Highlights
 
 - ✅ **End-to-End Lakehouse Project** for both **BI** and **ML**
+- ✅ **Data Governance**: Unity Catalog
 - ✅ **Medallion Architecture**: Bronze → Silver → Gold
 - ✅ **Data Sources**: HTTPS source, REST APIs, SQL Server (JDBC)
 - ✅ **Incremental Loads** with log-based filtering
