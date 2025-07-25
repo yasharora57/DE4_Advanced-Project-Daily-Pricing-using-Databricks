@@ -18,8 +18,8 @@ The **Daily Pricing Data Engineering Project** is designed to ingest, transform,
 - ✅ **Medallion Architecture**: Bronze → Silver → Gold
 - ✅ **Data Sources**: HTTPS source, REST APIs, SQL Server (JDBC)
 - ✅ **Incremental Loads** with log-based filtering
-- ✅ **SCD Type-2 Implementation** using staging + merge
-- ✅ **Star Schema Modeling** for analytics using denormalized fact tables
+- ✅ **SCD Type-2 + Persistent Surrogate Key Implementation** using staging + merge ensuring referential integrity
+- ✅ **Star Schema Modeling** for analytics using denormalized fact table
 - ✅ **Enriched ML Table** combining pricing, weather, geo data from REST APIs
 
 ---
