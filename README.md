@@ -4,8 +4,7 @@
 
 ### 📑 Contents:
 - **Code**
-- **Project Resources:** Data Model, Preview Data Files
-- **Project Architecture**
+- **Project Resources:** Project Architecture, Data Model, Preview Data Files
 
 The **Daily Pricing Data Engineering Project** is designed to ingest, transform, and store daily pricing information of market products for the year 2023 using the **Lakehouse Medallion Architecture** in **Databricks**, integrated with **Azure Data Lake Gen2 (ADLS)** and **Unity Catalog**. The project supports use cases for both **Business Intelligence (BI)** and **Machine Learning (ML)** by sourcing data from **REST APIs** and **SQL Server**.
 
